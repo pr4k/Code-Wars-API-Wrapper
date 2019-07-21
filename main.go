@@ -5,7 +5,7 @@ import (
 	"net/http"
 	"io/ioutil"
 	"os"
-	"os/exec"
+
 	"path"
 	"errors"
 
@@ -15,6 +15,8 @@ import (
 	"encoding/json"
 	"github.com/chromedp/chromedp"
 	"time"
+
+
 	
 )
 type solved struct {
@@ -41,7 +43,7 @@ func main(){
 		writeToFile(solutions,"",baseURL,apiSecret,"pr4k")
 	}
 	*/
-	updateGitRepo()
+	updateGitRepo("Testing Git push","/home/pr4k/go_proj/src/test/")
 	
 
 }
@@ -270,11 +272,3 @@ func extensions(lang string)string{
 	return ""
 }
 
-func updateGitRepo(){
-	//username,password:=returnGitRepo()
-	out,err:=exec.Command("git","add",".").Output()
-	if err != nil {
-		fmt.Println(err)
-	}
-	fmt.Println(string(out))
-}
