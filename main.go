@@ -4,11 +4,15 @@ import (
 	"fmt"
 	"net/http"
 	"io/ioutil"
+	"os"
+	"os/exec"
+	"path"
 	"errors"
 
 	"strings"
 	"context"
 	"log"
+	"encoding/json"
 	"github.com/chromedp/chromedp"
 	"time"
 	
@@ -21,19 +25,24 @@ type solved struct {
 }
 
 func main(){
+	/*
 	apiSecret:=returnAuth()
 	baseURL:="https://www.codewars.com/api/v1"
 
 	
-	res,err:= fetchChallengeInfoByID(apiSecret,baseURL,"pr4k","526dbd6c8c0eb53254000110")
-	if err==nil{
-			fmt.Println(res)
-	}
+	
 	username,password:=returnIdPassword()
+	
+		
+	
 	solutions,err:=fetchSolutionByID(username,password,"541c8630095125aba6000c00")
 	if err==nil{
 		fmt.Println(solutions)
+		writeToFile(solutions,"",baseURL,apiSecret,"pr4k")
 	}
+	*/
+	updateGitRepo()
+	
 
 }
 
@@ -96,7 +105,8 @@ func fetchChallengeInfoBySlug(apiSecret string , baseURL string,username string,
 	s:=string(body)
 	return s,nil
 }
-
+// Returns a Struct of all solved problems solution id name and code
+// It scrapes data from the solved page 
 func fetchAllSolution(username string,password string)([]solved,error){
 	var solutions []solved
 	ctx, cancel := chromedp.NewContext(context.Background())
@@ -209,7 +219,7 @@ func fetchAllSolution(username string,password string)([]solved,error){
 		
 		return solutions,nil
 }
-
+//returns your solution by kata id 
 func fetchSolutionByID(username string,password string,id string)(solved,error) {
 	res,err:=fetchAllSolution(username,password)
 	if err!=nil{
@@ -222,4 +232,49 @@ func fetchSolutionByID(username string,password string,id string)(solved,error) 
 		}
 	}
 	return solved{"","","",""},errors.New("Can't Find Id in solutions")
+}
+
+// writes kata solution to a file with app description
+func writeToFile(kata solved,folderPath string,baseURL string,apiSecret string,user string){
+	var description map[string]interface{}
+	
+	res,err:=fetchChallengeInfoByID(apiSecret,baseURL,user,kata.id)
+	if err==nil{
+		json.Unmarshal([]byte(res),&description)
+	}
+	fileName:=strings.Join(strings.Split(kata.name,"/")," ")
+	
+	fileName=path.Join(folderPath,fileName)+extensions(strings.ToUpper(kata.lang))
+	
+	os.Create(fileName)
+	file,err:=os.OpenFile(fileName,os.O_WRONLY|os.O_TRUNC|os.O_CREATE,0666,)
+	if err!=nil{
+		log.Fatal(err)
+
+	}
+	defer file.Close()
+	byteSlice:=[]byte("/*"+description["description"].(string)+"*/\n"+kata.code)
+	_,err=file.Write(byteSlice)
+	if err!=nil{
+		log.Fatal(err)
+	}
+	
+}
+func extensions(lang string)string{
+	if lang=="PYTHON"{
+		return ".py"
+	}
+	if lang=="GO"{
+		return ".go"
+	}
+	return ""
+}
+
+func updateGitRepo(){
+	//username,password:=returnGitRepo()
+	out,err:=exec.Command("git","add",".").Output()
+	if err != nil {
+		fmt.Println(err)
+	}
+	fmt.Println(string(out))
 }
