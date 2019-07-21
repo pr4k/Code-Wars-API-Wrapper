@@ -13,6 +13,7 @@ import (
 	"context"
 	"log"
 	"encoding/json"
+	"encoding/csv"
 	"github.com/chromedp/chromedp"
 	"time"
 
@@ -28,12 +29,7 @@ type solved struct {
 
 func main(){
 	/*
-	apiSecret:=returnAuth()
-	baseURL:="https://www.codewars.com/api/v1"
-
 	
-	
-	username,password:=returnIdPassword()
 	
 		
 	
@@ -43,7 +39,14 @@ func main(){
 		writeToFile(solutions,"",baseURL,apiSecret,"pr4k")
 	}
 	*/
-	updateGitRepo("Testing Git push","/home/pr4k/go_proj/src/test/")
+	apiSecret:=returnAuth()
+	baseURL:="https://www.codewars.com/api/v1"
+	username,password:=returnIdPassword()
+
+	err:=uploadToRepo(username,password,apiSecret,baseURL,"/home/pr4k/go_proj/src/codeWarsSolution","pr4k")
+	if err != nil {
+		fmt.Println(err)
+	}
 	
 
 }
@@ -138,14 +141,14 @@ func fetchAllSolution(username string,password string)([]solved,error){
 			return solutions,err
 		}
 
-		log.Println("Crossed 3")
+	
 		var html string
 		if err := chromedp.Run(ctx,
 			chromedp.InnerHTML(`document.querySelector(".items-list")`,&html,chromedp.ByJSPath) ); err != nil {
 					log.Fatal(err)
 					return solutions,err
 				}
-		log.Println(len(strings.Split(html,"/kata/")))
+
 		var text string
 		
 		if err := chromedp.Run(ctx,
@@ -255,13 +258,52 @@ func writeToFile(kata solved,folderPath string,baseURL string,apiSecret string,u
 
 	}
 	defer file.Close()
-	byteSlice:=[]byte("/*"+description["description"].(string)+"*/\n"+kata.code)
+	byteSlice:=[]byte(addComment(description["description"].(string),strings.ToUpper(kata.lang), kata.code))
 	_,err=file.Write(byteSlice)
 	if err!=nil{
 		log.Fatal(err)
 	}
 	
 }
+func addComment(description string,lang string,code string)string{
+	if lang=="PYTHON"{
+		return "'''"+description+"'''\n"+code
+	}
+	if lang=="GO"{
+		return "/*"+description+"*/\n"+code
+	}
+	return code
+}
+
+func uploadToRepo(username string,password string,apiSecret string,baseURL string,pathToRepo string,user string)error{
+	res,err:=fetchAllSolution(username,password)
+	if err != nil {
+		return err
+	}
+	file, err := os.Create(path.Join(pathToRepo,"log.csv"))
+    if err != nil {
+		return err
+	}
+    defer file.Close()
+
+    writer := csv.NewWriter(file)
+	defer writer.Flush()
+	
+	fmt.Println("Fetched solution")
+	writer.Write([]string{"Name","Id","Language"})
+	for _,solution := range res{
+		writer.Write([]string{solution.name,solution.id,solution.lang})
+		writeToFile(solution,pathToRepo,baseURL,apiSecret,user)
+		
+	}
+	writer.Flush()
+	
+	fmt.Println("Updated the folder")
+	updateGitRepo("Added Code",pathToRepo)
+
+	return nil
+}
+
 func extensions(lang string)string{
 	if lang=="PYTHON"{
 		return ".py"
