@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"io/ioutil"
 	"os"
+	"io"
 
 	"path"
 	"errors"
@@ -42,8 +43,8 @@ func main(){
 	apiSecret:=returnAuth()
 	baseURL:="https://www.codewars.com/api/v1"
 	username,password:=returnIdPassword()
-
-	err:=uploadToRepo(username,password,apiSecret,baseURL,"/home/pr4k/go_proj/src/codeWarsSolution","pr4k")
+	pathToRepo:="/home/pr4k/go_proj/src/codeWarsSolution"
+	err:=uploadToRepo(username,password,apiSecret,baseURL,pathToRepo,"pr4k")
 	if err != nil {
 		fmt.Println(err)
 	}
@@ -280,20 +281,40 @@ func uploadToRepo(username string,password string,apiSecret string,baseURL strin
 	if err != nil {
 		return err
 	}
+	csv_file, _ := os.Open(path.Join(pathToRepo,"log.csv"))
+	r := csv.NewReader(csv_file)
+	
+	var database [][]string
+	for {
+		record, err := r.Read()
+		if err == io.EOF {
+			break
+		}
+		if err != nil {
+		log.Fatal(err)
+		}
+ 
+		database=append(database,record)
+	}
 	file, err := os.Create(path.Join(pathToRepo,"log.csv"))
     if err != nil {
 		return err
 	}
     defer file.Close()
-
+	
+	
     writer := csv.NewWriter(file)
 	defer writer.Flush()
 	
 	fmt.Println("Fetched solution")
 	writer.Write([]string{"Name","Id","Language"})
 	for _,solution := range res{
-		writer.Write([]string{solution.name,solution.id,solution.lang})
+		fmt.Println([]string{solution.name,solution.id,solution.lang})
+		if doesNotContains(database,[]string{solution.name,solution.id,solution.lang}){
+		
 		writeToFile(solution,pathToRepo,baseURL,apiSecret,user)
+		}
+		writer.Write([]string{solution.name,solution.id,solution.lang})
 		
 	}
 	writer.Flush()
@@ -302,6 +323,16 @@ func uploadToRepo(username string,password string,apiSecret string,baseURL strin
 	updateGitRepo("Added Code",pathToRepo)
 
 	return nil
+	
+}
+
+func doesNotContains(s [][]string, e []string) bool {
+    for _, a := range s {
+        if a[2] == e[2] && a[1]==e[1] {
+            return false
+        }
+    }
+    return true
 }
 
 func extensions(lang string)string{
